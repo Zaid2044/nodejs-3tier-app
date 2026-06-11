@@ -29,6 +29,9 @@ pipeline {
 
                     env.BACKEND_REPO = "${env.ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/nodejs-backend"
                     env.FRONTEND_REPO = "${env.ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/nodejs-frontend"
+
+                    echo "Account ID: ${env.ACCOUNT_ID}"
+                    echo "Git SHA: ${env.GIT_SHA}"
                 }
             }
         }
@@ -106,11 +109,84 @@ pipeline {
                 '''
             }
         }
+
+        stage('Clone GitOps Repo') {
+            steps {
+                dir('gitops') {
+                    git(
+                        branch: 'main',
+                        credentialsId: 'gitops-github',
+                        url: 'https://github.com/Zaid2044/multitier-eks-gitops.git'
+                    )
+                }
+            }
+        }
+
+        stage('Update GitOps Values') {
+            steps {
+                dir('gitops') {
+
+                    sh """
+                    sed -i '/backend:/,/tag:/s/tag:.*/    tag: ${GIT_SHA}/' \
+                    helm/nodejs-app/values.yaml
+
+                    sed -i '/frontend:/,/tag:/s/tag:.*/    tag: ${GIT_SHA}/' \
+                    helm/nodejs-app/values.yaml
+                    """
+
+                    sh '''
+                    echo "===== Updated values.yaml ====="
+                    cat helm/nodejs-app/values.yaml
+                    '''
+                }
+            }
+        }
+
+        stage('Commit GitOps Changes') {
+            steps {
+                dir('gitops') {
+
+                    sh '''
+                    git config user.name "Jenkins"
+                    git config user.email "jenkins@local"
+
+                    git add .
+
+                    git commit -m "Deploy NodeJS ${GIT_SHA}" || true
+                    '''
+                }
+            }
+        }
+
+        stage('Push GitOps Changes') {
+            steps {
+                dir('gitops') {
+
+                    withCredentials([
+                        usernamePassword(
+                            credentialsId: 'gitops-github',
+                            usernameVariable: 'GIT_USER',
+                            passwordVariable: 'GIT_TOKEN'
+                        )
+                    ]) {
+
+                        sh '''
+                        git remote set-url origin \
+                        https://${GIT_USER}:${GIT_TOKEN}@github.com/Zaid2044/multitier-eks-gitops.git
+
+                        git push origin main
+                        '''
+                    }
+                }
+            }
+        }
     }
 
     post {
         always {
-            sh 'docker image prune -af || true'
+            sh '''
+            docker image prune -af || true
+            '''
         }
     }
 }
