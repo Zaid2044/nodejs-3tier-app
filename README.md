@@ -1,6 +1,6 @@
 # TaskFlow — Production-Ready Task Management Platform
 
-A modern, full-stack task management platform built with Node.js 22, Express, Sequelize, PostgreSQL, Docker, and Nginx...
+A modern, full-stack task management platform built with Node.js 22, Express, Sequelize, PostgreSQL, Docker, and Nginx.
 
 ---
 
