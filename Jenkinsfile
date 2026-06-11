@@ -13,18 +13,22 @@ pipeline {
             }
         }
 
-        stage('Get AWS Account') {
+        stage('Prepare Variables') {
             steps {
                 script {
+
                     env.ACCOUNT_ID = sh(
                         script: 'aws sts get-caller-identity --query Account --output text',
                         returnStdout: true
                     ).trim()
 
-                    env.BACKEND_REPO = "${env.ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com/nodejs-backend"
-                    env.FRONTEND_REPO = "${env.ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com/nodejs-frontend"
+                    env.GIT_SHA = sh(
+                        script: 'git rev-parse --short HEAD',
+                        returnStdout: true
+                    ).trim()
 
-                    env.IMAGE_TAG = "${env.BUILD_NUMBER}"
+                    env.BACKEND_REPO = "${env.ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/nodejs-backend"
+                    env.FRONTEND_REPO = "${env.ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/nodejs-frontend"
                 }
             }
         }
@@ -45,7 +49,7 @@ pipeline {
             steps {
                 sh '''
                 docker build \
-                -t nodejs-backend:${IMAGE_TAG} \
+                -t nodejs-backend:${GIT_SHA} \
                 ./backend
                 '''
             }
@@ -54,9 +58,11 @@ pipeline {
         stage('Tag Backend Image') {
             steps {
                 sh '''
-                docker tag \
-                nodejs-backend:${IMAGE_TAG} \
-                ${BACKEND_REPO}:${IMAGE_TAG}
+                docker tag nodejs-backend:${GIT_SHA} \
+                ${BACKEND_REPO}:${GIT_SHA}
+
+                docker tag nodejs-backend:${GIT_SHA} \
+                ${BACKEND_REPO}:latest
                 '''
             }
         }
@@ -64,8 +70,8 @@ pipeline {
         stage('Push Backend Image') {
             steps {
                 sh '''
-                docker push \
-                ${BACKEND_REPO}:${IMAGE_TAG}
+                docker push ${BACKEND_REPO}:${GIT_SHA}
+                docker push ${BACKEND_REPO}:latest
                 '''
             }
         }
@@ -74,7 +80,7 @@ pipeline {
             steps {
                 sh '''
                 docker build \
-                -t nodejs-frontend:${IMAGE_TAG} \
+                -t nodejs-frontend:${GIT_SHA} \
                 ./frontend
                 '''
             }
@@ -83,9 +89,11 @@ pipeline {
         stage('Tag Frontend Image') {
             steps {
                 sh '''
-                docker tag \
-                nodejs-frontend:${IMAGE_TAG} \
-                ${FRONTEND_REPO}:${IMAGE_TAG}
+                docker tag nodejs-frontend:${GIT_SHA} \
+                ${FRONTEND_REPO}:${GIT_SHA}
+
+                docker tag nodejs-frontend:${GIT_SHA} \
+                ${FRONTEND_REPO}:latest
                 '''
             }
         }
@@ -93,8 +101,8 @@ pipeline {
         stage('Push Frontend Image') {
             steps {
                 sh '''
-                docker push \
-                ${FRONTEND_REPO}:${IMAGE_TAG}
+                docker push ${FRONTEND_REPO}:${GIT_SHA}
+                docker push ${FRONTEND_REPO}:latest
                 '''
             }
         }
@@ -102,9 +110,7 @@ pipeline {
 
     post {
         always {
-            sh '''
-            docker image prune -af || true
-            '''
+            sh 'docker image prune -af || true'
         }
     }
 }
