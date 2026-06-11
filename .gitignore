@@ -1,0 +1,90 @@
+# Dependencies
+
+node_modules/
+
+# Logs
+
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment Variables
+
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+
+# Build Output
+
+dist/
+build/
+coverage/
+
+# Cache
+
+.npm/
+.cache/
+
+# IDE
+
+.vscode/
+.idea/
+
+# OS Files
+
+.DS_Store
+Thumbs.db
+
+# Docker
+
+docker-data/
+postgres_data/
+*.tar
+
+# Temporary Files
+
+tmp/
+temp/
+
+# Runtime Data
+
+pids/
+*.pid
+*.pid.lock
+
+# Sequelize
+
+sequelize-meta.json
+
+# Terraform
+
+.terraform/
+*.tfstate
+*.tfstate.*
+terraform.tfvars
+
+# Kubernetes
+
+kubeconfig
+*.secret.yaml
+
+# Misc
+
+*.swp
+*.swo
+*~
+
+# Testing
+
+coverage/
+.nyc_output/
+
+# Archives
+
+*.zip
+*.tar.gz
+*.rar

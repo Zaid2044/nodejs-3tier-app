@@ -1,0 +1,87 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: taskflow_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: taskflow
+      POSTGRES_USER: taskflow_user
+      POSTGRES_PASSWORD: taskflow_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - taskflow_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taskflow_user -d taskflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: taskflow_backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: taskflow
+      DB_USER: taskflow_user
+      DB_PASSWORD: taskflow_pass
+    networks:
+      - taskflow_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: taskflow_frontend
+    restart: unless-stopped
+    networks:
+      - taskflow_network
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: taskflow_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    networks:
+      - taskflow_network
+    depends_on:
+      - frontend
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  postgres_data:
+    name: taskflow_postgres_data
+
+networks:
+  taskflow_network:
+    name: taskflow_network
+    driver: bridge
