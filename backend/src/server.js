@@ -4,7 +4,12 @@ const morgan = require("morgan");
 const sequelize = require("./config/database");
 const Task = require("./models/Task");
 const taskRoutes = require("./routes/tasks");
+const client = require("prom-client");
 
+// Collect default Node.js metrics
+client.collectDefaultMetrics();
+
+const register = client.register;
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -28,8 +33,17 @@ app.get("/health", (req, res) => {
   });
 });
 
-// Metrics endpoint
 app.get("/metrics", async (req, res) => {
+  try {
+    res.set("Content-Type", register.contentType);
+    res.end(await register.metrics());
+  } catch (err) {
+    res.status(500).end(err.message);
+  }
+});
+
+// Metrics endpoint
+app.get("/app-metrics", async (req, res) => {
   try {
     const [total, completed, highPriority, criticalPriority] = await Promise.all([
       Task.count(),
